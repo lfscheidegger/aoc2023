@@ -1,9 +1,9 @@
+from input_helpers import get_input
+
 from dataclasses import dataclass
 import re
 from typing import List
 
-with open("./day2", "r") as f:
-    lines = f.readlines()
 
 @dataclass
 class Game:
@@ -55,12 +55,14 @@ def parse_games(games_line: str) -> List[Game]:
         ))
     return result
 
+
 def part1():
-    game_lines = [parse_game_line(line) for line in lines]
+    game_lines = get_input(2, parse_game_line)
     print(sum([game_line.id for game_line in game_lines if game_line.is_acceptable()]))
 
+
 def part2():
-    game_lines = [parse_game_line(line) for line in lines]
+    game_lines = get_input(2, parse_game_line)
     print(sum([game_line.power() for game_line in game_lines]))
 
 part2()

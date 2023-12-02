@@ -1,5 +1,6 @@
-with open("./day1", "r") as f:
-    lines = f.readlines()
+from input_helpers import get_input
+
+lines = get_input(1)
 
 # part 1
 def part1():
