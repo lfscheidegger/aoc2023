@@ -2,7 +2,7 @@
 session
 
 # Cached input files
-day*.txt
+cache*.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

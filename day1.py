@@ -1,4 +1,4 @@
-from input_helpers import get_input
+from aoc_api import get_input
 
 lines = get_input(1)
 
