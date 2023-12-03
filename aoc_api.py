@@ -65,15 +65,15 @@ def submit_with_day(day: int, level: int, answer: Any, really: bool = False, yea
     result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     data = result.stdout.decode('utf-8')
 
-    if data.find("That's not the right answer;") != -1:
+    if data.find("That's not the right answer") != -1:
         print(f"{answer} is wrong for {year}-{day} (part {level})... :(")
         return False
 
-    if data.find("That's the right answer!") != -1:
+    if data.find("That's the right answer") != -1:
         print(f"⭐⭐⭐ You got it! For {year}-{day} (part {level}) ⭐⭐⭐")
         return True
 
-    if data.find("You gave an answer too recently;") != -1:
+    if data.find("You gave an answer too recently") != -1:
         raise Exception("🕒🕒🕒 Submitted too recently")
 
     raise Exception("Got neither right nor wrong answer, whoops")
