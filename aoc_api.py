@@ -51,7 +51,7 @@ def get_raw_input(day: int, year: int = 2023) -> str:
     return data
 
 
-def submit_with_day(day: int, level: int, answer: Any, really: bool = False, year: int = 2023) -> bool:
+def submit(day: int, level: int, answer: Any, really: bool = False, year: int = 2023) -> bool:
     """
     Submits the given answer, on the given day and level (level should be 1 or 2)"""
 

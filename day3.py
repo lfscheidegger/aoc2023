@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Set, Dict, Optional, Union, Any, Tuple
 
-from aoc_api import get_input, submit_with_day
+from aoc_api import get_input, submit
 
 
 def neighboring_coords(r: int, c: int, height: int, width: int) -> List[Tuple[int, int]]:
@@ -52,7 +52,7 @@ def part1():
                         numbers.add(number)
 
     answer = sum([number[0] for number in numbers])
-    submit_with_day(day=3, level=1, answer=answer)
+    submit(day=3, level=1, answer=answer)
 
 
 def part2():
@@ -75,7 +75,7 @@ def part2():
                     lnumbers = list(numbers)
                     answer += lnumbers[0] * lnumbers[1]
 
-    submit_with_day(day=3, level=2, answer=answer)
+    submit(day=3, level=2, answer=answer)
 
 
 part2()
