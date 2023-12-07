@@ -29,6 +29,18 @@ def get_input(day: int, mapper: Optional[Callable[[str], T]] = None, year: int =
     return lines
 
 
+def get_input_chunks(day: int, mapper: Optional[Callable[[List[str]], T]] = None, year: int = 2023) -> Union[List[List[str]], List[T]]:
+    """
+    Returns the mapped input for the given day, either as a list of string chunks or as a list of objects
+    from the optional mapper."""
+    chunks = get_raw_input_chunks(day, year)
+
+    if mapper is not None:
+        return list(mapper(chunk) for chunk in chunks)
+
+    return chunks
+
+
 def get_raw_input(day: int, year: int = 2023) -> str:
     """
     Returns the raw string input for the given day."""
@@ -49,6 +61,30 @@ def get_raw_input(day: int, year: int = 2023) -> str:
         f.write(data)
 
     return data
+
+
+def get_raw_input_chunks(day: int, year: int = 2023) -> List[List[str]]:
+    """
+    Returns the puzzle input chunked by empty lines."""
+    lines = get_raw_input(day, year).split("\n")
+
+    if lines[-1] == "":
+        lines = lines[:-1]
+
+    result = []
+
+    chunk = []
+    for line in lines:
+        if line == "":
+            result.append(chunk)
+            chunk = []
+            continue
+        chunk.append(line)
+
+    if chunk != []:
+        result.append(chunk)
+
+    return result
 
 
 def submit(day: int, level: int, answer: Any, really: bool = False, year: int = 2023) -> bool:
