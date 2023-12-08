@@ -2,21 +2,8 @@ from dataclasses import dataclass
 from typing import List, Set, Dict, Optional, Union, Any, Tuple
 
 from aoc_api import get_input, submit
-
-
-def neighboring_coords(r: int, c: int, height: int, width: int) -> List[Tuple[int, int]]:
-    result = [
-        (r+1, c),
-        (r+1, c+1),
-        (r, c+1),
-        (r-1, c+1),
-        (r-1, c),
-        (r-1, c-1),
-        (r, c-1),
-        (r+1, c-1),
-    ]
-
-    return list(filter(lambda coord: 0 <= coord[0] < height and 0 <= coord[1] < width, result))
+from intervals import Interval
+from kernels import eight_kernel
 
 
 def extract_full_number(r: int, c: int, input: List[str]) -> Tuple[int, int, int, int]:
@@ -44,7 +31,7 @@ def part1():
             char = input[r][c]
             if not char.isdigit() and char != ".":
                 # this is a "symbol"
-                neighbors = neighboring_coords(r, c, len(input), len(input[0]))
+                neighbors = eight_kernel(r, c, x_bounds=Interval(0, len(input)), y_bounds=Interval(0, len(input)))
                 for rr, cr in neighbors:
                     if input[rr][cr].isdigit():
                         # part of a number
@@ -64,7 +51,7 @@ def part2():
             char = input[r][c]
             if char == '*':
                 # this is a "symbol"
-                neighbors = neighboring_coords(r, c, len(input), len(input[0]))
+                neighbors = eight_kernel(r, c, x_bounds=Interval(0, len(input)), y_bounds=Interval(0, len(input)))
                 numbers = set()
                 for rr, cr in neighbors:
                     if input[rr][cr].isdigit():
