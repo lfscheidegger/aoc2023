@@ -9,6 +9,8 @@ def eight_kernel(
     x_bounds: Optional[Interval] = None,
     y_bounds: Optional[Interval] = None
 ) -> List[Tuple[int, int]]:
+    """
+    Returns the 8-neighborhood kernel around the given x, y point, optionally filtering for bounds if provided."""
     result = [
         (x+1, y),
         (x+1, y+1),
@@ -35,6 +37,8 @@ def nine_kernel(
     x_bounds: Optional[Interval] = None,
     y_bounds: Optional[Interval] = None
 ) -> List[Tuple[int, int]]:
+    """
+    Returns the 9-neighborhood kernel around the given x, y point, optionally filtering for bounds if provided."""
     result = eight_kernel(x, y, x_bounds, y_bounds)
     result += [(x, y)]
 
@@ -53,6 +57,8 @@ def four_kernel(
     x_bounds: Optional[Interval] = None,
     y_bounds: Optional[Interval] = None
 ) -> List[Tuple[int, int]]:
+    """
+    Returns the 4-neighborhood kernel around the given x, y point, optionally filtering for bounds if provided."""
     result = [
         (x + 1, y),
         (x, y + 1),
@@ -75,6 +81,8 @@ def five_kernel(
     x_bounds: Optional[Interval] = None,
     y_bounds: Optional[Interval] = None
 ) -> List[Tuple[int, int]]:
+    """
+    Returns the 5-neighborhood kernel around the given x, y point, optionally filtering for bounds if provided."""
     result = four_kernel(x, y, x_bounds, y_bounds)
     result += [(x, y)]
 
