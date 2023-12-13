@@ -1,4 +1,4 @@
-from typing import List, Set, Tuple
+from typing import List, Set, Tuple, Dict
 
 from aoc_api import get_input, submit
 from functools import lru_cache
@@ -6,7 +6,7 @@ from intervals import Interval
 from kernels import four_kernel
 
 
-@lru_cache()
+@lru_cache(maxsize=150*150)
 def find_starting_point(input: Tuple[str]) -> Tuple[int, int]:
     for y, line in enumerate(input):
         for x, char in enumerate(line):
@@ -27,7 +27,7 @@ CONNECTIONS_MAP = {
 }
 
 
-@lru_cache()
+@lru_cache(maxsize=150*150)
 def find_start_mapping(input: Tuple[str]) -> str:
     """
     Returns the corrected pipe value for the starting point of the maze."""
@@ -114,13 +114,19 @@ def expand_input(input: Tuple[str]) -> Tuple[str]:
     return tuple(result)
 
 
-@lru_cache()
+REVERSE_FLOOD_FILL_MAP: Dict[Tuple[int, int], Set[Tuple[int, int]]] = {}
+
+
+@lru_cache(maxsize=150*150)
 def flood_fill(input: Tuple[str], starting_point: Tuple[int, int]) -> Set[Tuple[int, int]]:
     """
     Returns the set of flood-filled points given a starting empty point."""
     assert input[starting_point[1]][starting_point[0]] == '.'
 
     result: Set[Tuple[int, int]] = {starting_point}
+
+    if starting_point in REVERSE_FLOOD_FILL_MAP:
+        return REVERSE_FLOOD_FILL_MAP[starting_point]
 
     queue = [starting_point]
     while len(queue) > 0:
@@ -134,6 +140,8 @@ def flood_fill(input: Tuple[str], starting_point: Tuple[int, int]) -> Set[Tuple[
             result.add(neighbor)
             queue.append(neighbor)
 
+    for point in result:
+        REVERSE_FLOOD_FILL_MAP[point] = result
     return result
 
 
@@ -158,7 +166,9 @@ def pipe_kernel(input: Tuple[str], pipe_coords: Tuple[int, int]) -> List[Tuple[i
     return [(offset[0] + pipe_coords[0], offset[1] + pipe_coords[1]) for offset in offsets[pipe]]
 
 
-@lru_cache()
+REVERSE_PIPE_FILL_MAP: Dict[Tuple[int, int], Set[Tuple[int, int]]] = {}
+
+@lru_cache(maxsize=150*150)
 def pipe_path(input: Tuple[str], starting_point: Tuple[int, int]) -> Set[Tuple[int, int]]:
     """
     Returns the set of points forming a pipeline or loop given a starting pipe point."""
@@ -166,18 +176,38 @@ def pipe_path(input: Tuple[str], starting_point: Tuple[int, int]) -> Set[Tuple[i
 
     result: Set[Tuple[int, int]] = {starting_point}
 
+    if starting_point in REVERSE_PIPE_FILL_MAP:
+        return REVERSE_PIPE_FILL_MAP[starting_point]
+
     queue = [starting_point]
     while len(queue) > 0:
         head = queue.pop()
+        head_pipe = input[head[1]][head[0]]
+        if head_pipe == 'S':
+            head_pipe = find_start_mapping(input)
 
         for neighbor in [x for x in pipe_kernel(input, head) if x not in result]:
-            result.add(neighbor)
-            queue.append(neighbor)
+            neighbor_pipe = input[neighbor[1]][neighbor[0]]
 
+            if neighbor_pipe == 'S':
+                neighbor_pipe = find_start_mapping(input)
+
+            if ('up' in CONNECTIONS_MAP[head_pipe] and 'down' in CONNECTIONS_MAP[neighbor_pipe]) or \
+                    ('down' in CONNECTIONS_MAP[head_pipe] and 'up' in CONNECTIONS_MAP[neighbor_pipe]) or \
+                    ('left' in CONNECTIONS_MAP[head_pipe] and 'right' in CONNECTIONS_MAP[neighbor_pipe]) or \
+                    ('right' in CONNECTIONS_MAP[head_pipe] and 'left' in CONNECTIONS_MAP[neighbor_pipe]):
+                result.add(neighbor)
+                queue.append(neighbor)
+
+    for point in result:
+        REVERSE_PIPE_FILL_MAP[point] = result
     return result
 
 
-@lru_cache()
+REVERSE_VALID_FILL_MAP: Dict[Tuple[int, int], bool] = {}
+
+
+@lru_cache(maxsize=150*150)
 def is_valid_fill(input: Tuple[str], starting_point: Tuple[int, int]) -> bool:
     """
     Returns true iff the flood fill starting in the given starting point is valid.
@@ -185,12 +215,19 @@ def is_valid_fill(input: Tuple[str], starting_point: Tuple[int, int]) -> bool:
     A valid flood fill is adjacent to the pipe path that contains the starting point, and does not touch the outside."""
     assert input[starting_point[1]][starting_point[0]] == '.'
 
+    if starting_point in REVERSE_VALID_FILL_MAP:
+        return REVERSE_VALID_FILL_MAP[starting_point]
+
     fill = flood_fill(input, starting_point)
+
     for point in fill:
         # touches the outside
         if point[0] == 0 or point[0] == len(input[0]) - 1 or point[1] == 0 or point[1] == len(input) - 1:
+            for f in fill:
+                REVERSE_VALID_FILL_MAP[f] = False
             return False
 
+    for point in fill:
         neighbors = four_kernel(
             point[0], point[1],
             x_bounds=Interval(0, len(input[0])), y_bounds=Interval(0, len(input)))
@@ -200,23 +237,44 @@ def is_valid_fill(input: Tuple[str], starting_point: Tuple[int, int]) -> bool:
                 continue
             path = pipe_path(input, neighbor)
             if 'S' in [input[p[1]][p[0]] for p in path]:
+                for f in fill:
+                    REVERSE_VALID_FILL_MAP[f] = True
                 return True
 
+    for f in fill:
+        REVERSE_VALID_FILL_MAP[f] = False
     return False
 
 
 def part2():
     input = tuple(get_input(10))
-    input = expand_input(input)
+    starting_point = find_starting_point(input)
 
-    #for l in expanded_input:
-    #    print(l)
-    #print(expanded_input)
-    #print(flood_fill(expanded_input, (0, 0)))
-    #print(pipe_path(expanded_input, find_starting_point(expanded_input)))
+    path = pipe_path(input, starting_point)
+
+    cleaned = []
+    for y, line in enumerate(input):
+        result = ''
+        for x, char in enumerate(line):
+            if (x, y) in path:
+                result += char
+            else:
+                result += '.'
+        cleaned.append(result)
+
+    cleaned = tuple(cleaned)
+    input = expand_input(cleaned)
+
+    result = None
 
     for y, line in enumerate(input):
+        if result is not None:
+            break
+
         for x, _ in enumerate(line):
+            if result is not None:
+                break
+
             if input[y][x] != '.':
                 continue
 
