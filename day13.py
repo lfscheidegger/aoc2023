@@ -1,5 +1,6 @@
 from typing import List
 
+from arrays import transpose_strings
 from aoc_api import get_input_chunks, submit
 
 
@@ -65,18 +66,8 @@ def get_left_mirrors(input_chunk: List[str]) -> int:
 
 
 def get_top_mirrors(input_chunk: List[str]) -> int:
-    transposed = transpose(input_chunk)
+    transposed = transpose_strings(input_chunk)
     return get_left_mirrors(transposed)
-
-
-def transpose(input_chunk: List[str]) -> List[str]:
-    result = []
-    for c in range(len(input_chunk[0])):
-        line = []
-        for r in range(len(input_chunk)):
-            line.append(input_chunk[r][c])
-        result.append(''.join(line))
-    return result
 
 
 def part1():
