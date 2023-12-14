@@ -34,3 +34,8 @@ def reverse_strings(input_chunk: Union[List[str], Tuple[str]]) -> Union[List[str
     else:
         return result
 
+
+def print_strings(input_chunk: Union[List[str], Tuple[str]]):
+    for r in input_chunk:
+        print(r)
+    print()
