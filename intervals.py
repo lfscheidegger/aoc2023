@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Union
+from typing import List, Union, Tuple
 
 
 @dataclass(frozen=True)
@@ -68,3 +68,7 @@ def difference(interval: Interval, intervals_to_subtract: List[Interval]) -> Lis
                     new_result.append(Interval(sub.right, r.right))
         result = new_result
     return result
+
+
+def get_string_bounds(input: List[str]) -> Tuple[Interval, Interval]:
+    return Interval(0, len(input[0])), Interval(0, len(input))
