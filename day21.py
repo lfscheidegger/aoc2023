@@ -96,38 +96,44 @@ def print_farm(current_plots: Collection[Vec2]):
 def count_garden_plots(
         farm_chart: Dict[Vec2, Set[Vec2]],
         steady_state_farms: Dict[Vec2, int],
-        steps: int
+        steps: int,
+        debug: bool = False
 ) -> int:
     result = 0
 
-    print(f'total farms: {len(farm_chart)}')
-    print(f'total steady state farms: {len(steady_state_farms)}')
+    if debug:
+        print(f'total farms: {len(farm_chart)}')
+        print(f'total steady state farms: {len(steady_state_farms)}')
 
     for this_farm in sorted(list(farm_chart.keys()) + list(steady_state_farms.keys())):
         if this_farm in farm_chart:
             assert this_farm not in steady_state_farms
 
-            print(this_farm)
-            if farm_chart[this_farm] == red:
-                print(f'Red farm: {len(farm_chart[this_farm])}')
-            elif farm_chart[this_farm] == green:
-                print(f'Green farm: {len(farm_chart[this_farm])}')
-            else:
-                print(len(farm_chart[this_farm]))
-                print_farm(farm_chart[this_farm])
+            if debug:
+                print(this_farm)
+                if farm_chart[this_farm] == red:
+                    print(f'Red farm: {len(farm_chart[this_farm])}')
+                elif farm_chart[this_farm] == green:
+                    print(f'Green farm: {len(farm_chart[this_farm])}')
+                else:
+                    print(len(farm_chart[this_farm]))
+                    print_farm(farm_chart[this_farm])
 
             result += len(farm_chart[this_farm])
 
         elif this_farm in steady_state_farms:
             assert this_farm not in farm_chart
 
-            print(this_farm)
+            if debug:
+                print(this_farm)
             parity = steady_state_farms[this_farm]
             if steps % 2 == parity:
-                print(f'Green farm: {len(green)}')
+                if debug:
+                    print(f'Green farm: {len(green)}')
                 result += len(green)
             else:
-                print(f'Red farm: {len(red)}')
+                if debug:
+                    print(f'Red farm: {len(red)}')
                 result += len(red)
 
     return result
@@ -161,6 +167,7 @@ def part1():
 
 def part2():
     global input, red, green
+    debug = False
 
     input = get_input(day=21)
 
@@ -169,11 +176,12 @@ def part2():
 
     red, green = find_steady_states()
 
-    print('red')
-    print_farm(red)
+    if debug:
+        print('red')
+        print_farm(red)
 
-    print('green')
-    print_farm(green)
+        print('green')
+        print_farm(green)
 
     assert(steps_from_steps(red) == green)
     assert(steps_from_steps(green) == red)
@@ -184,7 +192,7 @@ def part2():
     # parity of step when reaching red steady state
     steady_state_farms: Dict[Vec2, int] = {}
 
-    while steps < 36:
+    while steps < 5000:
         next_farm_chart: Dict[Vec2, Set[Vec2]] = {}
 
         # Advect "out" of the front
@@ -212,13 +220,9 @@ def part2():
 
         farm_chart = next_farm_chart
 
-
         # Cull farms that have reached steady state
         to_delete = set()
         for this_farm in farm_chart:
-            #if this_farm == (0, -2):
-            #    print(steps)
-            #    print_farm(farm_chart[this_farm])
             if farm_chart[this_farm] == red:
                 #continue
                 to_delete.add(this_farm)
@@ -226,16 +230,14 @@ def part2():
             elif farm_chart[this_farm] == green:
                 #continue
                 to_delete.add(this_farm)
-                steady_state_farms[this_farm] = 1 + steps % 2
+                steady_state_farms[this_farm] = 1 - (steps % 2)
 
         for this_farm in to_delete:
             del farm_chart[this_farm]
 
         steps += 1
 
-
-
-    answer = count_garden_plots(farm_chart, steady_state_farms, steps)
+    answer = count_garden_plots(farm_chart, steady_state_farms, steps, debug=debug)
     submit(day=21, level=2, answer=answer)
 
 
