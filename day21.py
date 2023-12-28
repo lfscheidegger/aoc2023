@@ -1,10 +1,11 @@
 from collections import defaultdict
+from functools import cache
 from typing import Tuple, Set, Dict, Collection, List
 
 from aoc_api import get_input, submit
 from intervals import Interval
 from kernels import four_kernel
-from vectors import Vec2, minus2
+from vectors import Vec2, minus2, plus2
 
 
 def get_starting_position() -> Vec2:
@@ -32,10 +33,21 @@ def steps_from_steps(current_plots: Set[Vec2]) -> Set[Vec2]:
 
 
 def advance_farms(this_farm: Vec2, current_plots: Set[Vec2]) -> Dict[Vec2, Set[Vec2]]:
-    left_farm: Vec2 = (this_farm[0] - 1, this_farm[1])
-    right_farm: Vec2 = (this_farm[0] + 1, this_farm[1])
-    top_farm: Vec2 = (this_farm[0], this_farm[1] - 1)
-    bottom_farm: Vec2 = (this_farm[0], this_farm[1] + 1)
+    result: Dict[Vec2, Set[Vec2]] = defaultdict(set)
+
+    relative = relative_advance_farms(current_plots)
+    for offset in relative:
+        result[plus2(this_farm, offset)] = relative[offset]
+
+    return {key: frozenset(result[key]) for key in result}
+
+
+@cache
+def relative_advance_farms(current_plots: Set[Vec2]) -> Dict[Vec2, Set[Vec2]]:
+    left_farm: Vec2 = (-1, 0)
+    right_farm: Vec2 = (1, 0)
+    top_farm: Vec2 = (0, -1)
+    bottom_farm: Vec2 = (0, 1)
 
     result: Dict[Vec2, Set[Vec2]] = defaultdict(set)
 
@@ -69,10 +81,10 @@ def advance_farms(this_farm: Vec2, current_plots: Set[Vec2]) -> Dict[Vec2, Set[V
                 continue
 
             if input[n_y][n_x] != '#':
-                result[this_farm].add((n_x, n_y))
+                result[(0, 0)].add((n_x, n_y))
                 continue
 
-    return result
+    return {key: frozenset(result[key]) for key in result}
 
 
 input: List[str] = []
@@ -146,7 +158,7 @@ def find_steady_states() -> Tuple[Set[Vec2], Set[Vec2]]:
         p2 = steps_from_steps(p1)
 
         if p0 == p2:
-            return p0, p1
+            return frozenset(p0), frozenset(p1)
 
         p0 = p1
 
@@ -172,7 +184,7 @@ def part2():
     input = get_input(day=21)
 
     steps = 0
-    farm_chart: Dict[Vec2, Set[Vec2]] = {(0, 0): {get_starting_position()}}
+    farm_chart: Dict[Vec2, Set[Vec2]] = {(0, 0): frozenset([get_starting_position()])}
 
     red, green = find_steady_states()
 
