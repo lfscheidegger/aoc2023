@@ -1,4 +1,5 @@
 from collections import defaultdict
+from dataclasses import dataclass
 from functools import cache
 from typing import Tuple, Set, Dict, Collection, List
 
@@ -90,6 +91,8 @@ def relative_advance_farms(current_plots: Set[Vec2]) -> Dict[Vec2, Set[Vec2]]:
 input: List[str] = []
 red: Set[Vec2] = set()
 green: Set[Vec2] = set()
+next_after_red: Dict[Vec2, Set[Vec2]]
+next_after_green: Dict[Vec2, Set[Vec2]]
 
 
 def print_farm(current_plots: Collection[Vec2]):
@@ -142,10 +145,12 @@ def count_garden_plots(
             if steps % 2 == parity:
                 if debug:
                     print(f'Green farm: {len(green)}')
+                    print_farm(green)
                 result += len(green)
             else:
                 if debug:
                     print(f'Red farm: {len(red)}')
+                    print_farm(red)
                 result += len(red)
 
     return result
@@ -177,8 +182,209 @@ def part1():
     submit(day=21, level=1, answer=len(current_plots))
 
 
+@dataclass(frozen=True)
+class CompressedFarms:
+    farm_chart: Dict[Vec2, Set[Vec2]]
+    steady_state_farms: Dict[Vec2, int]
+    steps: int
+
+    def total_farms(self) -> int:
+        return len(self.farm_chart) + len(self.steady_state_farms)
+
+    def validate_stencil(self):
+        assert self.total_farms() == 21
+        assert len(self.farm_chart) == 16
+
+        # The "bottom right skinny"
+        assert self.farm_chart[(-1, -2)] == self.farm_chart[(-2, -1)]
+
+        # The "bottom left skinny"
+        assert self.farm_chart[(1, -2)] == self.farm_chart[(2, -1)]
+
+        # The "top right skinny"
+        assert self.farm_chart[(-2, 1)] == self.farm_chart[(-1, 2)]
+
+        # The "top left skinny"
+        assert self.farm_chart[(2, 1)] == self.farm_chart[(1, 2)]
+
+    def top(self) -> Set[Vec2]:
+        return self.farm_chart[(0, -2)]
+
+    def bottom(self) -> Set[Vec2]:
+        return self.farm_chart[(0, 2)]
+
+    def left(self) -> Set[Vec2]:
+        return self.farm_chart[(-2, 0)]
+
+    def right(self) -> Set[Vec2]:
+        return self.farm_chart[(2, 0)]
+
+    def bottom_right_skinny(self) -> Set[Vec2]:
+        return self.farm_chart[(-1, -2)]
+
+    def bottom_right_fat(self) -> Set[Vec2]:
+        return self.farm_chart[(1, 1)]
+
+    def bottom_left_skinny(self) -> Set[Vec2]:
+        return self.farm_chart[(1, -2)]
+
+    def bottom_left_fat(self) -> Set[Vec2]:
+        return self.farm_chart[(-1, 1)]
+
+    def top_right_skinny(self) -> Set[Vec2]:
+        return self.farm_chart[(-2, 1)]
+
+    def top_right_fat(self) -> Set[Vec2]:
+        return self.farm_chart[(1, -1)]
+
+    def top_left_skinny(self) -> Set[Vec2]:
+        return self.farm_chart[(2, 1)]
+
+    def top_left_fat(self) -> Set[Vec2]:
+        return self.farm_chart[(-1, -1)]
+
+
+
+def advance_part2(farms: CompressedFarms) -> CompressedFarms:
+    next_farm_chart: Dict[Vec2, Set[Vec2]] = {}
+
+    farm_chart = dict(farms.farm_chart)
+    steady_state_farms = dict(farms.steady_state_farms)
+    steps = farms.steps
+
+    # Advect "out" of the front
+    for this_farm in farm_chart:
+        next_farms = advance_farms(this_farm, farm_chart[this_farm])
+        for next_farm in next_farms:
+            if next_farm in steady_state_farms:
+                # Let's not advect out to cells that are already in steady state
+                continue
+            next_farm_chart[next_farm] = next_farms[next_farm].union(next_farm_chart.get(next_farm, set()))
+
+    # Advect "in" from the front
+    for this_farm in farm_chart:
+        for neighbor_farm in four_kernel(this_farm[0], this_farm[1]):
+            if neighbor_farm not in steady_state_farms:
+                continue
+
+            relative_farm_coords = minus2(this_farm, neighbor_farm)
+
+            steady_state_parity = steady_state_farms[neighbor_farm]
+            if steps % 2 == steady_state_parity:
+                next_farm_chart[this_farm] = next_after_green[relative_farm_coords].union(
+                    next_farm_chart.get(this_farm, set()))
+            else:
+                next_farm_chart[this_farm] = next_after_red[relative_farm_coords].union(
+                    next_farm_chart.get(this_farm, set()))
+
+    # Cull farms that have reached steady state
+    to_delete = set()
+    for this_farm in next_farm_chart:
+        if next_farm_chart[this_farm] == red:
+            to_delete.add(this_farm)
+            steady_state_farms[this_farm] = steps % 2
+        elif next_farm_chart[this_farm] == green:
+            to_delete.add(this_farm)
+            steady_state_farms[this_farm] = 1 - (steps % 2)
+
+    for this_farm in to_delete:
+        del next_farm_chart[this_farm]
+
+    return CompressedFarms(
+        farm_chart=next_farm_chart,
+        steady_state_farms=steady_state_farms,
+        steps=steps + 1)
+
+
+def get_stencil(compressed_farms: CompressedFarms) -> CompressedFarms:
+    steps = 0
+    total_farms = compressed_farms.total_farms()
+
+    stencil = None
+
+    # technically it's 2 * len(input) + len(input) // 2, but give it some slop
+    while steps < 3 * len(input):
+        old_compressed_farms = compressed_farms
+        compressed_farms = advance_part2(compressed_farms)
+
+        if total_farms == 21 and compressed_farms.total_farms() > 21:
+            # First time we have the complete set of stencils
+            assert steps == 2 * len(input) + len(input) // 2
+            stencil = old_compressed_farms
+            break
+
+        total_farms = compressed_farms.total_farms()
+        steps = compressed_farms.steps
+
+    assert stencil is not None
+    stencil.validate_stencil()
+    return stencil
+
+
+def count_from_stencil(stencil: CompressedFarms, desired_steps: int) -> int:
+    # We only know how to count for certain sizes
+    assert (desired_steps - len(input) // 2) % len(input) == 0
+
+    # We need a steady state farm in the center
+    assert len(stencil.steady_state_farms) > 0
+
+    # We need the input size to be odd (because it means parity changes with every "chunk" advance)
+    assert len(input) % 2 == 1
+
+    n = (desired_steps - len(input) // 2) // len(input)
+
+    # we start from the top of the diamond and go around
+    top_count = 1
+    bottom_left_skinny_count = n
+    top_right_fat_count = n - 1
+
+    right_count = 1
+    top_left_skinny_count = n
+    bottom_right_fat_count = n -1
+
+    bottom_count = 1
+    top_right_skinny_count = n
+    bottom_left_fat_count = n - 1
+
+    left_count = 1
+    bottom_right_skinny_count = n
+    top_left_fat_count = n - 1
+
+    answer = 0
+
+    answer += top_count * len(stencil.top())
+    answer += bottom_left_skinny_count * len(stencil.bottom_left_skinny())
+    answer += top_right_fat_count * len(stencil.top_right_fat())
+
+    answer += right_count * len(stencil.right())
+    answer += top_left_skinny_count * len(stencil.top_left_skinny())
+    answer += bottom_right_fat_count * len(stencil.bottom_right_fat())
+
+    answer += bottom_count * len(stencil.bottom())
+    answer += top_right_skinny_count * len(stencil.top_right_skinny())
+    answer += bottom_left_fat_count * len(stencil.bottom_left_fat())
+
+    answer += left_count * len(stencil.left())
+    answer += bottom_right_skinny_count * len(stencil.bottom_right_skinny())
+    answer += top_left_fat_count * len(stencil.top_left_fat())
+
+    off_parity_steady_state_farm_count = n**2
+    parity_steady_state_farm_count = (n-1) ** 2
+
+    if stencil.steady_state_farms[(0, 0)] == 1:
+        # 1 means red at the stencil-forming step
+        answer += parity_steady_state_farm_count * len(green)
+        answer += off_parity_steady_state_farm_count * len(red)
+    else:
+        assert stencil.steady_state_farms[(0, 0)] == 0
+        answer += parity_steady_state_farm_count * len(red)
+        answer += off_parity_steady_state_farm_count * len(green)
+
+    return answer
+
+
 def part2():
-    global input, red, green
+    global input, red, green, next_after_red, next_after_green
     debug = False
 
     input = get_input(day=21)
@@ -195,61 +401,20 @@ def part2():
         print('green')
         print_farm(green)
 
-    assert(steps_from_steps(red) == green)
-    assert(steps_from_steps(green) == red)
+    assert steps_from_steps(red) == green
+    assert steps_from_steps(green) == red
 
     next_after_red = advance_farms((0, 0), red)
     next_after_green = advance_farms((0, 0), green)
 
     # parity of step when reaching red steady state
     steady_state_farms: Dict[Vec2, int] = {}
+    compressed_farms = CompressedFarms(farm_chart=farm_chart, steady_state_farms=steady_state_farms, steps=steps)
 
-    while steps < 5000:
-        next_farm_chart: Dict[Vec2, Set[Vec2]] = {}
+    desired = 26501365
 
-        # Advect "out" of the front
-        for this_farm in farm_chart:
-            next_farms = advance_farms(this_farm, farm_chart[this_farm])
-            for next_farm in next_farms:
-                if next_farm in steady_state_farms:
-                    # Let's not advect out to cells that are already in steady state
-                    continue
-                next_farm_chart[next_farm] = next_farms[next_farm].union(next_farm_chart.get(next_farm, set()))
-
-        # Advect "in" from the front
-        for this_farm in farm_chart:
-            for neighbor_farm in four_kernel(this_farm[0], this_farm[1]):
-                if neighbor_farm not in steady_state_farms:
-                    continue
-
-                relative_farm_coords = minus2(this_farm, neighbor_farm)
-
-                steady_state_parity = steady_state_farms[neighbor_farm]
-                if steps % 2 == steady_state_parity:
-                    next_farm_chart[this_farm] = next_after_green[relative_farm_coords].union(next_farm_chart.get(this_farm, set()))
-                else:
-                    next_farm_chart[this_farm] = next_after_red[relative_farm_coords].union(next_farm_chart.get(this_farm, set()))
-
-        farm_chart = next_farm_chart
-
-        # Cull farms that have reached steady state
-        to_delete = set()
-        for this_farm in farm_chart:
-            if farm_chart[this_farm] == red:
-                #continue
-                to_delete.add(this_farm)
-                steady_state_farms[this_farm] = steps % 2
-            elif farm_chart[this_farm] == green:
-                #continue
-                to_delete.add(this_farm)
-                steady_state_farms[this_farm] = 1 - (steps % 2)
-
-        for this_farm in to_delete:
-            del farm_chart[this_farm]
-
-        steps += 1
-
-    answer = count_garden_plots(farm_chart, steady_state_farms, steps, debug=debug)
+    stencil = get_stencil(compressed_farms)
+    answer = count_from_stencil(stencil, desired)
     submit(day=21, level=2, answer=answer)
 
 
